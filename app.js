@@ -4,6 +4,12 @@
 
 'use strict';
 
+// ===== LAUNCH CONFIG =====
+// Add your form service endpoint here when you connect Web3Forms/Formspree.
+// Example: const NEWSLETTER_ENDPOINT = 'https://api.web3forms.com/submit';
+const NEWSLETTER_ENDPOINT = '';
+const CONTACT_EMAIL = 'hello@automindai.com';
+
 // ===== DATA STORE =====
 
 const ARTICLES = [
@@ -320,6 +326,16 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.appendChild(document.createTextNode(str));
   return div.innerHTML;
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function notifyUser(message) {
+  if (typeof window.showToast === 'function') {
+    window.showToast(message);
+  }
 }
 
 function animateCounter(el, target, duration = 2000) {
@@ -932,16 +948,193 @@ function getBotResponse(msg) {
 // ===== NEWSLETTER =====
 
 function initNewsletter() {
-  $('nlSubscribeBtn').addEventListener('click', () => {
+  $('nlSubscribeBtn').addEventListener('click', async () => {
     const name = $('nlName').value.trim();
     const email = $('nlEmail').value.trim();
-    if (!email || !email.includes('@')) {
+    const button = $('nlSubscribeBtn');
+
+    if (!isValidEmail(email)) {
       $('nlEmail').style.borderColor = '#ef4444';
       setTimeout(() => $('nlEmail').style.borderColor = '', 2000);
+      notifyUser('Please enter a valid email address.');
       return;
     }
-    $('nlForm').style.display = 'none';
-    $('nlSuccess').style.display = 'block';
+
+    button.disabled = true;
+    button.querySelector('span').textContent = 'Subscribing...';
+
+    try {
+      if (NEWSLETTER_ENDPOINT) {
+        const response = await fetch(NEWSLETTER_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            name,
+            email,
+            source: 'AutoMind AI website',
+            submittedAt: new Date().toISOString()
+          })
+        });
+
+        if (!response.ok) throw new Error('Newsletter service error');
+      } else {
+        const subscribers = JSON.parse(localStorage.getItem('automind_launch_subscribers') || '[]');
+        const exists = subscribers.some(item => item.email.toLowerCase() === email.toLowerCase());
+        if (!exists) {
+          subscribers.push({ name, email, submittedAt: new Date().toISOString() });
+          localStorage.setItem('automind_launch_subscribers', JSON.stringify(subscribers));
+        }
+      }
+
+      $('nlForm').style.display = 'none';
+      $('nlSuccess').style.display = 'block';
+      notifyUser('Subscription saved.');
+    } catch (error) {
+      notifyUser('Subscription could not be saved. Please try again.');
+    } finally {
+      button.disabled = false;
+      button.querySelector('span').textContent = 'Subscribe Free';
+    }
+  });
+}
+
+// ===== LAUNCH INFO MODALS =====
+
+const INFO_PAGES = {
+  about: {
+    title: 'About AutoMind AI',
+    body: `
+      <p>AutoMind AI is an automobile intelligence platform for enthusiasts, engineering students, and future mobility learners.</p>
+      <p>Version 1 focuses on curated automotive explainers, interactive quizzes, project ideas, and a guided AutoBot assistant. The platform is built as a fast static website so it can launch quickly on GitHub Pages.</p>
+      <h3>What is live in Version 1?</h3>
+      <ul>
+        <li>Automobile insight articles with category filters</li>
+        <li>Quiz Zone with instant scoring</li>
+        <li>Student Lab project and thesis idea generator</li>
+        <li>AutoBot guided automotive assistant</li>
+        <li>Search, cookie controls, and mobile-friendly navigation</li>
+      </ul>`
+  },
+  advertise: {
+    title: 'Advertise With Us',
+    body: `
+      <p>AutoMind AI is built for automobile readers, EV learners, engineering students, and technology-focused audiences.</p>
+      <p>For launch partnerships, sponsored placements, or education/industry collaborations, contact us at <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>.</p>
+      <h3>Available placements</h3>
+      <ul>
+        <li>Sponsored article placement</li>
+        <li>Student Lab project sponsor</li>
+        <li>Newsletter sponsorship</li>
+        <li>Automotive education partnership</li>
+      </ul>`
+  },
+  privacy: {
+    title: 'Privacy Policy',
+    body: `
+      <p>AutoMind AI respects visitor privacy. This Version 1 website stores only limited browser data required for basic site features.</p>
+      <h3>What we store</h3>
+      <ul>
+        <li>Cookie preference, saved in your browser using localStorage</li>
+        <li>Quiz progress and temporary interface state while you use the page</li>
+        <li>Newsletter signup details only when you submit the form</li>
+      </ul>
+      <p>When a newsletter provider is connected, submitted details will be sent to that provider for email delivery. Until then, signup data is stored locally in the browser for launch testing.</p>
+      <p>For privacy questions, email <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>.</p>`
+  },
+  terms: {
+    title: 'Terms of Service',
+    body: `
+      <p>AutoMind AI provides educational automobile content, quizzes, and student project guidance for general information only.</p>
+      <h3>Use of content</h3>
+      <ul>
+        <li>Use project and thesis ideas as starting points, then verify details with your institution or supervisor.</li>
+        <li>Do not treat AutoBot responses as professional engineering, legal, financial, or safety certification advice.</li>
+        <li>Automotive specifications and industry claims should be verified before publication or academic submission.</li>
+      </ul>
+      <p>By using this website, you agree to use the content responsibly and independently verify important information.</p>`
+  },
+  contact: {
+    title: 'Contact AutoMind AI',
+    body: `
+      <p>Have feedback, a collaboration idea, or a correction for an article?</p>
+      <p>Email us at <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>.</p>
+      <h3>Good reasons to contact us</h3>
+      <ul>
+        <li>Suggesting an automobile topic</li>
+        <li>Reporting an incorrect article detail</li>
+        <li>Requesting a student project guide</li>
+        <li>Discussing sponsorship or partnership</li>
+      </ul>`
+  }
+};
+
+function openInfoPage(page) {
+  const info = INFO_PAGES[page];
+  if (!info) return;
+
+  $('modalContent').innerHTML = `
+    <div class="modal-img">⚡</div>
+    <div class="modal-tags">
+      <span class="modal-tag">AutoMind AI</span>
+      <span class="modal-tag">Version 1</span>
+    </div>
+    <h2>${info.title}</h2>
+    ${info.body}
+  `;
+  $('articleModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function initLaunchLinks() {
+  const pageLinks = {
+    'footer-about': 'about',
+    'footer-advertise': 'advertise',
+    'footer-contact': 'contact',
+    'footer-privacy': 'privacy',
+    'footer-terms': 'terms',
+    'cookiePrivacyLink': 'privacy'
+  };
+
+  Object.entries(pageLinks).forEach(([id, page]) => {
+    const link = $(id);
+    if (!link) return;
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      openInfoPage(page);
+    });
+  });
+
+  const footerFilters = {
+    'footer-ev-link': 'ev',
+    'footer-tech-link': 'tech',
+    'footer-reviews-link': 'review',
+    'footer-industry-link': 'industry'
+  };
+
+  Object.entries(footerFilters).forEach(([id, filter]) => {
+    const link = $(id);
+    if (!link) return;
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const btn = document.querySelector(`.filter-btn[data-filter="${filter}"]`);
+      if (btn) btn.click();
+      scrollToSection('hub');
+    });
+  });
+
+  const socialLinks = {
+    'social-twitter': 'https://x.com/',
+    'social-youtube': 'https://www.youtube.com/',
+    'social-linkedin': 'https://www.linkedin.com/',
+    'social-instagram': 'https://www.instagram.com/'
+  };
+
+  Object.entries(socialLinks).forEach(([id, url]) => {
+    const link = $(id);
+    if (!link) return;
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener';
   });
 }
 
@@ -986,6 +1179,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initAutoBot();
   initNewsletter();
   initFloatingCta();
+  initLaunchLinks();
   initScrollReveal();
 
   // Expose global functions for inline onclick
@@ -994,4 +1188,5 @@ document.addEventListener('DOMContentLoaded', () => {
   window.selectAnswer = selectAnswer;
   window.downloadOutline = downloadOutline;
   window.useIdeaAsProject = useIdeaAsProject;
+  window.openInfoPage = openInfoPage;
 });

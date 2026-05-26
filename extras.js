@@ -6,6 +6,7 @@
 // ===== TOAST NOTIFICATIONS =====
 function showToast(msg, duration = 3000) {
   const container = document.getElementById('toastContainer');
+  if (!container) return;
   const toast = document.createElement('div');
   toast.className = 'toast';
   toast.textContent = msg;
@@ -16,6 +17,7 @@ function showToast(msg, duration = 3000) {
 // ===== BACK TO TOP =====
 function initBackToTop() {
   const btn = document.getElementById('backToTop');
+  if (!btn) return;
   window.addEventListener('scroll', () => {
     btn.classList.toggle('visible', window.scrollY > 500);
   });
@@ -27,6 +29,7 @@ function initBackToTop() {
 // ===== COOKIE BANNER =====
 function initCookieBanner() {
   const banner = document.getElementById('cookieBanner');
+  if (!banner) return;
   const accepted = localStorage.getItem('automind_cookies');
   if (!accepted) {
     setTimeout(() => banner.classList.add('visible'), 1500);
@@ -48,6 +51,7 @@ function initSearch() {
   const input   = document.getElementById('searchInput');
   const results = document.getElementById('searchResults');
   const closeBtn = document.getElementById('searchClose');
+  if (!overlay || !input || !results || !closeBtn) return;
 
   // Open search with Ctrl+K or /
   document.addEventListener('keydown', (e) => {
@@ -210,6 +214,7 @@ function initArticleShareHint() {
 // ===== QUIZ FLOATING CTA SMART HIDE =====
 function initSmartFloatingCta() {
   const cta = document.getElementById('floatingCta');
+  if (!cta) return;
   let lastY = 0;
   window.addEventListener('scroll', () => {
     const y = window.scrollY;
@@ -238,6 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initSearch();
   addSearchHintToNav();
   initReadingProgress();
+  initArticleShareHint();
   initSmartFloatingCta();
 
   // Welcome toast
