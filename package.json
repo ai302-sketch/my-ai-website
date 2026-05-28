@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vercel dev",
     "start": "vercel dev",
-    "check": "node -c api/_openai.js && node -c api/chat.js && node -c api/generate-projects.js"
+    "check": "node -c api/_ai.js && node -c api/chat.js && node -c api/generate-projects.js"
   },
   "devDependencies": {
     "vercel": "^48.0.0"

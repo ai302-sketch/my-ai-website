@@ -5,7 +5,7 @@
 - AutoBot now calls `/api/chat` first.
 - The thesis/project generator now calls `/api/generate-projects` first.
 - If the AI backend is not configured, the site keeps using the existing local demo answers.
-- The OpenAI API key is expected on the server only, never in `app.js`.
+- The Gemini API key is expected on the server only, never in `app.js`.
 
 ## Local setup
 
@@ -24,8 +24,8 @@
 3. Add your real key in `.env`:
 
    ```bash
-   OPENAI_API_KEY=your_real_key
-   OPENAI_MODEL=gpt-5-mini
+   GEMINI_API_KEY=your_real_key
+   GEMINI_MODEL=gemini-2.0-flash
    ```
 
 4. Start the local Vercel server:
@@ -49,8 +49,8 @@ Use Vercel for the first launch because this project now needs backend API route
 3. Add these environment variables in Vercel project settings:
 
    ```text
-   OPENAI_API_KEY
-   OPENAI_MODEL
+   GEMINI_API_KEY
+   GEMINI_MODEL
    ```
 
 4. Deploy.
