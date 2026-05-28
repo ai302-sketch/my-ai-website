@@ -9,6 +9,8 @@
 // Example: const NEWSLETTER_ENDPOINT = 'https://api.web3forms.com/submit';
 const NEWSLETTER_ENDPOINT = '';
 const CONTACT_EMAIL = 'hello@automindai.com';
+const AI_CHAT_ENDPOINT = '/api/chat';
+const AI_PROJECTS_ENDPOINT = '/api/generate-projects';
 
 // ===== DATA STORE =====
 
@@ -326,6 +328,10 @@ function escapeHtml(str) {
   const div = document.createElement('div');
   div.appendChild(document.createTextNode(str));
   return div.innerHTML;
+}
+
+function jsString(str) {
+  return JSON.stringify(String(str)).replace(/</g, '\\u003c');
 }
 
 function isValidEmail(email) {
@@ -773,32 +779,21 @@ function initStudentLab() {
   });
 }
 
-function generateThesisIdeas() {
+async function generateThesisIdeas() {
   const input = $('thesisInput').value.toLowerCase().trim();
   const btn = $('generateBtn');
   const btnText = $('generateBtnText');
   const results = $('generatorResults');
+  const branch = $('branchSelect').value;
+  const level = $('levelSelect').value;
 
   btnText.textContent = '⏳ Generating...';
   btn.disabled = true;
 
-  setTimeout(() => {
-    let ideas = [];
-
-    if (input.includes('battery') || input.includes('bms') || input.includes('cell')) {
-      ideas = THESIS_IDEAS.battery;
-    } else if (input.includes('autonomous') || input.includes('self-driving') || input.includes('lidar') || input.includes('sensor')) {
-      ideas = THESIS_IDEAS.autonomous;
-    } else if (input.includes('hybrid') || input.includes('phev') || input.includes('energy management')) {
-      ideas = THESIS_IDEAS.hybrid;
-    } else if (input.includes('aerodynamic') || input.includes('drag') || input.includes('cfd') || input.includes('air')) {
-      ideas = THESIS_IDEAS.aerodynamics;
-    } else {
-      ideas = THESIS_IDEAS.default;
-    }
-
+  try {
+    const ideas = await getThesisIdeas(input, branch, level);
     results.innerHTML = ideas.map(idea => `
-      <div class="gen-result-item" onclick="useIdeaAsProject('${escapeHtml(idea.title)}')">
+      <div class="gen-result-item" onclick='useIdeaAsProject(${jsString(idea.title)})'>
         <div class="gen-result-title">📌 ${escapeHtml(idea.title)}</div>
         <div class="gen-result-desc">${escapeHtml(idea.desc)}</div>
         <div class="gen-result-tags">${idea.tags.map(t => `<span class="gen-tag">${escapeHtml(t)}</span>`).join('')}</div>
@@ -808,7 +803,59 @@ function generateThesisIdeas() {
 
     btnText.textContent = '✨ Generate Ideas';
     btn.disabled = false;
-  }, 1200);
+  } catch (error) {
+    notifyUser('Project ideas could not be generated. Please try again.');
+    btnText.textContent = '✨ Generate Ideas';
+    btn.disabled = false;
+  }
+}
+
+async function getThesisIdeas(input, branch, level) {
+  const fallbackIdeas = getFallbackThesisIdeas(input);
+
+  try {
+    const response = await fetch(AI_PROJECTS_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        keyword: input || 'automobile technology',
+        branch,
+        level
+      })
+    });
+
+    if (!response.ok) throw new Error('AI project endpoint unavailable');
+    const data = await response.json();
+
+    if (Array.isArray(data.ideas) && data.ideas.length > 0) {
+      return data.ideas.map(idea => ({
+        title: String(idea.title || '').trim(),
+        desc: String(idea.desc || '').trim(),
+        tags: Array.isArray(idea.tags) ? idea.tags.slice(0, 5) : []
+      })).filter(idea => idea.title && idea.desc);
+    }
+  } catch (error) {
+    console.info('Using local project ideas fallback:', error.message);
+  }
+
+  await new Promise(resolve => setTimeout(resolve, 500));
+  return fallbackIdeas;
+}
+
+function getFallbackThesisIdeas(input) {
+  if (input.includes('battery') || input.includes('bms') || input.includes('cell')) {
+    return THESIS_IDEAS.battery;
+  }
+  if (input.includes('autonomous') || input.includes('self-driving') || input.includes('lidar') || input.includes('sensor')) {
+    return THESIS_IDEAS.autonomous;
+  }
+  if (input.includes('hybrid') || input.includes('phev') || input.includes('energy management')) {
+    return THESIS_IDEAS.hybrid;
+  }
+  if (input.includes('aerodynamic') || input.includes('drag') || input.includes('cfd') || input.includes('air')) {
+    return THESIS_IDEAS.aerodynamics;
+  }
+  return THESIS_IDEAS.default;
 }
 
 function useIdeaAsProject(title) {
@@ -834,7 +881,7 @@ function initAutoBot() {
   });
 }
 
-function sendMessage() {
+async function sendMessage() {
   const input = $('chatInput');
   const msg = input.value.trim();
   if (!msg) return;
@@ -844,9 +891,9 @@ function sendMessage() {
 
   const typingId = showTyping();
 
-  setTimeout(() => {
+  setTimeout(async () => {
     removeTyping(typingId);
-    const response = getBotResponse(msg);
+    const response = await getAiBotResponse(msg);
     appendMessage(response, 'bot');
     scrollChat();
   }, 1000 + Math.random() * 800);
@@ -878,7 +925,7 @@ function appendMessage(text, sender) {
 }
 
 function formatBotText(text) {
-  return text
+  return escapeHtml(text)
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\n\n/g, '</p><p style="margin-top:8px;">')
     .replace(/\n/g, '<br>')
@@ -913,6 +960,27 @@ function removeTyping(id) {
 function scrollChat() {
   const msgs = $('chatMessages');
   msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function getAiBotResponse(msg) {
+  try {
+    const response = await fetch(AI_CHAT_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg })
+    });
+
+    if (!response.ok) throw new Error('AI chat endpoint unavailable');
+    const data = await response.json();
+
+    if (data && typeof data.reply === 'string' && data.reply.trim()) {
+      return data.reply.trim();
+    }
+  } catch (error) {
+    console.info('Using local AutoBot fallback:', error.message);
+  }
+
+  return getBotResponse(msg);
 }
 
 function getBotResponse(msg) {
