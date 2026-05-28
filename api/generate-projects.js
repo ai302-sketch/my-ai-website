@@ -7,7 +7,7 @@ const {
   readJsonBody,
   requirePost,
   sendJson
-} = require('./_openai');
+} = require('./_ai');
 
 const SYSTEM_PROMPT = `You generate automotive engineering project and thesis ideas for AutoMind AI.
 Return realistic, student-friendly ideas only.
@@ -54,7 +54,18 @@ module.exports = async function handler(req, res) {
 
     const data = await createResponse({
       instructions: SYSTEM_PROMPT,
-      input: `Create project/thesis ideas for keyword: ${keyword}. Student level: ${level}. Engineering branch: ${branch}.`,
+      input: `Create project/thesis ideas for keyword: ${keyword}. Student level: ${level}. Engineering branch: ${branch}.
+
+Return JSON exactly in this structure:
+{
+  "ideas": [
+    {
+      "title": "specific project title",
+      "desc": "2 sentence practical description",
+      "tags": ["tag1", "tag2", "tag3"]
+    }
+  ]
+}`,
       max_output_tokens: 900,
       text: {
         format: {

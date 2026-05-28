@@ -7,7 +7,7 @@ const {
   readJsonBody,
   requirePost,
   sendJson
-} = require('./_openai');
+} = require('./_ai');
 
 const SYSTEM_PROMPT = `You are AutoBot AI for AutoMind AI, an automobile education website.
 Answer as a helpful automotive and engineering assistant for students and enthusiasts.
